@@ -112,7 +112,7 @@ const ActivityLog: React.FC<{ log: AgentLogEntry[] }> = ({ log }) => {
 export const ResearchTeamUI: React.FC<{ state: AgentProcessState, date: string }> = ({ state, date }) => {
     const stageMessages: Record<string, string> = {
         planning: 'Lead Researcher is setting the agenda for the team meeting...',
-        meeting: 'Team is in a planning meeting to align on today\'s priorities...',
+        meeting: "The AI team is holding a collaborative planning session...",
         researching: `Specialists are conducting research for iteration #${state.currentIteration}...`,
         reviewing: `Lead agent is reviewing submissions for iteration #${state.currentIteration}...`,
         revising: 'Lead agent is requesting revisions from specialists...',

@@ -34,32 +34,37 @@ Use your web search tool to identify the most important trends, recent news, and
 Synthesize your findings into a comprehensive text summary. This summary will serve as the agenda for a team planning meeting.
 Do NOT output JSON. Output only the text summary of your findings.`;
 
-const MEETING_INPUT_PROMPT = (specialistName: string, specialistDescription: string, meetingAgenda: string) => `You are the ${specialistName}, an expert AI specializing in crypto analysis. ${specialistDescription}.
-Your team is holding a planning meeting. The Lead Researcher has provided the following market summary as a meeting agenda:
+const MEETING_DISCUSSION_TURN_PROMPT = (specialistName: string, specialistDescription: string, meetingAgenda: string, discussionHistory: string) => `You are the ${specialistName}, an expert AI specializing in crypto analysis. ${specialistDescription}.
+You are participating in a planning meeting with your AI specialist colleagues. The Lead Researcher has provided the following market summary as a meeting agenda:
 
 --- MEETING AGENDA ---
 ${meetingAgenda}
 ---
 
-Based on this agenda and your specific expertise, what are the top 2-3 most critical areas, questions, or data points your research should focus on today to contribute to the team's report?
-Your input will be used to form the final research plan. Be concise and specific.
-Output a simple text response, like a bulleted list. Do NOT output JSON.`;
+The team discussion so far:
+--- DISCUSSION HISTORY ---
+${discussionHistory.length > 0 ? discussionHistory : "You are the first to speak."}
+---
 
-const PLAN_FINALIZATION_PROMPT = (date: string, researchSummary: string, specialistInputs: string) => `You are an expert Lead Researcher for a crypto analysis firm. It is ${date}.
-You have just concluded a planning meeting with your team of AI specialists.
-First, you provided an initial market summary. Then, your specialists provided their input on key areas to investigate.
+Based on the agenda AND the points made by your colleagues, what is your contribution to the discussion? 
+You can agree with a point and expand on it, respectfully disagree and offer an alternative, or introduce a new point relevant to your expertise. Your goal is to collaboratively refine the team's focus for today's report. 
+Keep your response concise and direct, as if you were speaking in a meeting. Do not greet anyone or use unnecessary pleasantries.
+Output a simple text response. Do NOT output JSON.`;
 
-Your Initial Market Summary (Meeting Agenda):
+const PLAN_FINALIZATION_PROMPT = (date: string, researchSummary: string, discussionTranscript: string) => `You are an expert Lead Researcher for a crypto analysis firm. It is ${date}.
+You have just concluded a planning meeting with your team of AI specialists where you all discussed the initial market summary you provided.
+
+Initial Market Summary (Meeting Agenda):
 ---
 ${researchSummary}
 ---
 
-Specialist Team's Input:
----
-${specialistInputs}
+Here is the full transcript of the team's discussion:
+--- DISCUSSION TRANSCRIPT ---
+${discussionTranscript}
 ---
 
-Your task is to synthesize all of this information into a final, actionable, and strategic research plan. Formulate a specific and high-level research objective for each specialist that reflects the collective intelligence of the team.
+Your task is to synthesize the key takeaways from this collaborative discussion into a final, actionable, and strategic research plan. Formulate a specific and high-level research objective for each specialist that reflects the collective intelligence and refined focus achieved during the meeting.
 
 Your final output MUST be a single JSON object that strictly adheres to the provided schema. Do not include any other text, greetings, or explanations outside of the JSON object itself. The JSON should contain a single key "objectives", which is an array of objects, each with a "specialist" name and their "objective".
 `;
@@ -274,28 +279,30 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                     break;
                 
                 case 'meeting':
-                    addLog('Lead Researcher', 'Specialists are providing their input for the research plan.');
+                    addLog('Lead Researcher', "Alright team, let's discuss today's agenda. I'll be synthesizing our conversation into a final plan.");
                     
-                    const specialistInputPromises = processState.specialistTasks.map(task => {
+                    let discussionTranscript = "";
+                    for (const task of processState.specialistTasks) {
                         const spec = SPECIALISTS.find(s => s.id === task.id)!;
-                        return executeGeminiTextCall({
+                        
+                        addLog(task.name, "is formulating their contribution to the discussion...");
+
+                        const turn = await executeGeminiTextCall({
                             model: 'gemini-2.5-flash',
-                            contents: MEETING_INPUT_PROMPT(task.name, spec.description, processStore.agenda),
+                            contents: MEETING_DISCUSSION_TURN_PROMPT(task.name, spec.description, processStore.agenda, discussionTranscript),
                         });
-                    });
+                        
+                        // Add the specialist's spoken turn to the log for the UI
+                        addLog(task.name, turn.text);
 
-                    const specialistInputs = await Promise.all(specialistInputPromises);
-                    const formattedInputs = specialistInputs.map((input, index) => {
-                        return `--- Input from ${processState.specialistTasks[index].name} ---\n${input.text}`;
-                    }).join('\n\n');
+                        discussionTranscript += `\n\n--- Contribution from ${task.name} ---\n${turn.text}`;
+                    }
 
-                    // FIX: Added new log entry with the specialist inputs.
-                    addLog('Lead Researcher', 'Gathered all team input.', { title: "Specialist Inputs", content: formattedInputs });
-                    addLog('Lead Researcher', 'Synthesizing the final research plan.');
-
+                    addLog('Lead Researcher', 'Excellent discussion. I will now synthesize this into our final research plan.');
+                    
                     const planResult = await executeGeminiJSONCall({
                         model: 'gemini-2.5-pro',
-                        contents: PLAN_FINALIZATION_PROMPT(date, processStore.agenda, formattedInputs),
+                        contents: PLAN_FINALIZATION_PROMPT(date, processStore.agenda, discussionTranscript),
                         config: {
                             responseMimeType: "application/json",
                             responseSchema: plannerSchema
