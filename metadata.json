@@ -1,0 +1,7 @@
+{
+  "name": "Crypto Insights AI",
+  "description": "An AI-powered web application that scans the cryptocurrency market to provide investors with real-time information, news, insights, and actionable advice. Features include a market dashboard, a live voice agent, a text-based chatbot, and a deep analysis mode for complex queries.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
