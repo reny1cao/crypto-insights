@@ -323,7 +323,7 @@ export const Dashboard: React.FC = () => {
 
       {renderContent()}
       
-      <Chatbot />
+      <Chatbot reportContext={agentState.finalReport} />
     </div>
   );
 };

@@ -4,18 +4,16 @@ import { BotIcon } from './icons/BotIcon';
 import { UserIcon } from './icons/UserIcon';
 import { simpleChat } from '../services/geminiService';
 import { Content } from '@google/genai';
-import { Source } from '../types';
+import { Source, CryptoReportData } from '../types';
 import { GoogleGenAI, LiveServerMessage, Modality, Blob } from "@google/genai";
 import { MicrophoneIcon } from './icons/MicrophoneIcon';
 
-// --- Types & Interfaces ---
 interface Message {
     role: 'user' | 'model';
     text: string;
     sources?: Source[];
 };
 
-// --- Helper Components & Icons ---
 const StopIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg {...props} viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
     <path d="M0 0h24v24H0z" fill="none"/>
@@ -23,8 +21,45 @@ const StopIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
+const ChatMarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
+  if (!content) return null;
 
-// --- Audio Helper Functions (from original LiveAgent) ---
+  const elements: React.ReactElement[] = [];
+  const lines = content.split('\n');
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`ul-${elements.length}`} className="list-disc list-inside space-y-1 my-2 pl-4">
+          {listItems.map((item, i) => (
+            <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+          ))}
+        </ul>
+      );
+      listItems = [];
+    }
+  };
+
+  lines.forEach((line, index) => {
+    let processedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    if (processedLine.match(/^(\*|\s{2,}\*|-|\d+\.) /)) {
+      listItems.push(processedLine.replace(/^(\s*)(\*|-|\d+\.) /, ''));
+    } else {
+      flushList();
+      if (processedLine.trim() !== '') {
+        elements.push(<p key={index} className="my-1" dangerouslySetInnerHTML={{ __html: processedLine }} />);
+      }
+    }
+  });
+
+  flushList();
+
+  return <div className="prose prose-sm prose-invert max-w-none">{elements}</div>;
+};
+
+
 function encode(bytes: Uint8Array) {
   let binary = '';
   const len = bytes.byteLength;
@@ -58,17 +93,13 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
 }
 
 
-const ChatInterface: React.FC = () => {
-    // --- State Management ---
+const ChatInterface: React.FC<{ reportContext: CryptoReportData | null }> = ({ reportContext }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
-    // Voice Session State
     const [isVoiceSessionActive, setIsVoiceSessionActive] = useState(false);
     const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'speaking'>('idle');
 
-    // --- Refs ---
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const sessionPromiseRef = useRef<Promise<any> | null>(null);
     const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -84,7 +115,6 @@ const ChatInterface: React.FC = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // --- Text Chat Logic ---
     const handleSend = async () => {
         if (!input.trim() || isLoading || isVoiceSessionActive) return;
 
@@ -98,10 +128,11 @@ const ChatInterface: React.FC = () => {
             role: msg.role,
             parts: [{ text: msg.text }]
         }));
-        history.pop(); // Remove the current user message for the history param
+        history.pop(); 
 
         try {
-            const { text, sources } = await simpleChat(history, input);
+            const contextString = reportContext ? JSON.stringify(reportContext) : null;
+            const { text, sources } = await simpleChat(history, input, contextString);
             setMessages(prev => [...prev, { role: 'model', text, sources }]);
         } catch (error) {
             console.error(error);
@@ -111,7 +142,6 @@ const ChatInterface: React.FC = () => {
         }
     };
 
-    // --- Voice Chat Logic ---
     const stopVoiceSession = useCallback(() => {
         if (sessionPromiseRef.current) {
             sessionPromiseRef.current.then(session => session.close());
@@ -146,6 +176,11 @@ const ChatInterface: React.FC = () => {
             const outputNode = outputAudioContextRef.current.createGain();
             outputNode.connect(outputAudioContextRef.current.destination);
 
+            let systemInstruction = "You are a friendly and helpful AI assistant.";
+            if (reportContext) {
+                 systemInstruction = `You are the AI Companion for the Crypto Insights dashboard. The user is currently viewing a detailed market report. Use the following report data as your primary source to answer the user's questions. Refer to it as 'the report on your screen'. Here is the report data: \n\n \`\`\`json\n${JSON.stringify(reportContext)}\n\`\`\``;
+            }
+
             sessionPromiseRef.current = ai.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-09-2025',
                 callbacks: {
@@ -168,7 +203,6 @@ const ChatInterface: React.FC = () => {
                         scriptProcessor.connect(inputAudioContextRef.current!.destination);
                     },
                     onmessage: async (message: LiveServerMessage) => {
-                        // Handle audio output
                         const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
                         if (base64Audio) {
                             setVoiceStatus('speaking');
@@ -187,7 +221,6 @@ const ChatInterface: React.FC = () => {
                             sourcesRef.current.add(sourceNode);
                         }
                         
-                        // Handle transcriptions
                         if (message.serverContent?.inputTranscription) {
                             currentInputTranscriptionRef.current += message.serverContent.inputTranscription.text;
                         }
@@ -214,6 +247,7 @@ const ChatInterface: React.FC = () => {
                     onclose: () => { /* Session closed */ },
                 },
                 config: {
+                    systemInstruction,
                     responseModalities: [Modality.AUDIO],
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
@@ -225,22 +259,21 @@ const ChatInterface: React.FC = () => {
         }
     };
     
-    // --- Render Logic ---
     return (
         <div className="flex flex-col h-full bg-shark-light">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                         {msg.role === 'model' && <BotIcon className="w-8 h-8 text-gold-400 flex-shrink-0" />}
-                        <div className={`px-4 py-2 rounded-xl max-w-sm ${msg.role === 'user' ? 'bg-gold-600 text-cod-gray' : 'bg-shark'}`}>
-                            <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                        <div className={`px-4 py-2 rounded-xl max-w-sm text-sm ${msg.role === 'user' ? 'bg-gold-600 text-white' : 'bg-shark text-gray-300'}`}>
+                            <ChatMarkdownRenderer content={msg.text} />
                             {msg.sources && msg.sources.length > 0 && (
-                                <div className="mt-2 pt-2 border-t border-cod-gray/20 text-xs">
-                                    <p className="font-bold mb-1 text-gray-700">Sources:</p>
+                                <div className="mt-3 pt-2 border-t border-white/10 text-xs">
+                                    <p className="font-bold mb-1 text-gray-400">Sources:</p>
                                     <ul className="space-y-1">
                                         {msg.sources.map((source, i) => (
                                             <li key={i} className="truncate">
-                                                <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-black">
+                                                <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gold-500">
                                                     [{i + 1}] {source.title}
                                                 </a>
                                             </li>
@@ -281,8 +314,8 @@ const ChatInterface: React.FC = () => {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                            placeholder="Ask a question..."
-                            className="w-full bg-transparent p-3 focus:outline-none text-sm"
+                            placeholder="Ask about the report..."
+                            className="w-full bg-transparent p-3 focus:outline-none text-sm text-white"
                             disabled={isLoading}
                         />
                         <button onClick={startVoiceSession} className="p-3 text-gold-500 hover:text-gold-400 disabled:text-gray-600">
@@ -298,7 +331,7 @@ const ChatInterface: React.FC = () => {
     );
 }
 
-export const Chatbot: React.FC = () => {
+export const Chatbot: React.FC<{ reportContext: CryptoReportData | null }> = ({ reportContext }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     if (!isOpen) {
@@ -320,7 +353,7 @@ export const Chatbot: React.FC = () => {
                 <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-white text-2xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-hidden">
-                <ChatInterface />
+                <ChatInterface reportContext={reportContext} />
             </div>
         </div>
     );

@@ -1,11 +1,7 @@
-// FIX: Added 'Chat' and 'GroundingChunk' to the import for the new simpleChat function.
 import { GoogleGenAI, GenerateContentResponse, Type, Content, GroundingChunk, Chat } from "@google/genai";
 import { AgentProcessState, CryptoReportData, Source, SpecialistTask, SpecialistType, VerificationResult, AgentLogEntry, ReviewDecision } from '../types';
-// FIX: Imported the new writerSynthesizerSchema
 import { specialistSchemas, plannerSchema, writerSynthesizerSchema, verifierSchema, reviewSchema } from './schemas';
 
-// FIX: Replaced global AI client with a just-in-time factory function
-// to ensure the API key is read from the environment at request time.
 const getAiClient = () => {
     if (!process.env.API_KEY) {
         throw new Error("API_KEY environment variable is not set or is invalid");
@@ -23,9 +19,6 @@ const SPECIALISTS: { id: SpecialistType, name: string, description: string }[] =
     { id: 'opportunity', name: 'Investment Strategist', description: 'Synthesizes all data to find actionable investment opportunities.' },
 ];
 
-// --- AGENT PROMPTS ---
-
-// FIX: Converted to a function to accept previous day's summary for context.
 const PLANNER_RESEARCH_PROMPT = (date: string, previousReportSummary: string | null) => `You are an expert Lead Researcher for a crypto analysis firm. Your task is to get a high-level overview of the current crypto market landscape for today, ${date}.
 ${previousReportSummary 
     ? `\nFor context, here is the executive summary from yesterday's report. Your goal is to build upon this, noting significant changes and continuing trends.\n--- YESTERDAY'S SUMMARY ---\n${previousReportSummary}\n---\n` 
@@ -154,7 +147,6 @@ ${approvedAnalyses.length > 0 ? approvedAnalyses : "No analyses have been approv
 
 Your response MUST be a JSON array of review decisions. Include a decision for ALL specialists from the "NEW SUBMISSIONS" section. ONLY include a decision for a specialist from the "PREVIOUSLY APPROVED REPORTS" section if you are overriding their approval.`;
 
-// FIX: Updated prompt to ask for only the summary and confidence level, not the full report.
 const WRITER_PROMPT = (date: string, specialistAnalyses: string, feedback: string | null) => `You are a senior crypto analyst acting as the Lead Researcher for a report dated ${date}.
 Your team of specialists has submitted their final, approved analyses. Your role is to provide the final overarching narrative and assessment.
 
@@ -180,7 +172,6 @@ ${report}
 `;
 
 const executeGeminiJSONCall = async (config: any) => {
-    // FIX: Get a fresh AI client for each call.
     const ai = getAiClient();
     try {
         const response = await ai.models.generateContent(config);
@@ -199,7 +190,6 @@ const executeGeminiJSONCall = async (config: any) => {
 };
 
 const executeGeminiTextCall = async (config: any): Promise<{ text: string, sources: Source[] }> => {
-    // FIX: Get a fresh AI client for each call.
     const ai = getAiClient();
     try {
         const response = await ai.models.generateContent(config);
@@ -222,7 +212,6 @@ const executeGeminiTextCall = async (config: any): Promise<{ text: string, sourc
 // A temporary store for data between stages
 const processStore: { [key: string]: any } = {};
 
-// FIX: Added 'previousReportSummary' parameter for providing context to the AI.
 export const generateDashboardContent = async (date: string, previousReportSummary: string | null, onUpdate: (state: Partial<AgentProcessState>) => void): Promise<CryptoReportData> => {
     let processState: AgentProcessState = {
         stage: 'planning',
@@ -245,7 +234,6 @@ export const generateDashboardContent = async (date: string, previousReportSumma
         onUpdate(processState);
     };
     
-    // FIX: Immediately publish the initial state to the UI to prevent showing a stale status.
     onUpdate(processState);
 
     const addLog = (agent: string, message: string, data?: any) => {
@@ -261,7 +249,6 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                     
                     const researchResult = await executeGeminiTextCall({
                         model: 'gemini-2.5-pro',
-                        // FIX: Pass previous day's summary to the prompt.
                         contents: PLANNER_RESEARCH_PROMPT(date, previousReportSummary),
                         config: {
                             tools: [{ googleSearch: {} }],
@@ -269,7 +256,6 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                     });
 
                     processStore.agenda = researchResult.text;
-                    // FIX: Changed log message to include agenda details.
                     addLog('Lead Researcher', 'Agenda set. Convening specialist team for planning meeting.', { title: "Market Summary (Meeting Agenda)", content: researchResult.text });
                     
                     update({ 
@@ -292,7 +278,6 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                             contents: MEETING_DISCUSSION_TURN_PROMPT(task.name, spec.description, processStore.agenda, discussionTranscript),
                         });
                         
-                        // Add the specialist's spoken turn to the log for the UI
                         addLog(task.name, turn.text);
 
                         discussionTranscript += `\n\n--- Contribution from ${task.name} ---\n${turn.text}`;
@@ -546,7 +531,6 @@ export const generateDashboardContent = async (date: string, previousReportSumma
 
                 case 'synthesizing':
                      addLog('Lead Researcher', 'Synthesizing the final market report from approved analyses.');
-                     // FIX: Correctly build the approvedAnalyses object from the task state.
                      const approvedAnalyses = processState.specialistTasks
                         .filter(t => t.status === 'approved')
                         .reduce((acc, task) => {
@@ -554,14 +538,12 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                             return acc;
                         }, {} as { [key: string]: any });
                     
-                     // FIX: Call Gemini for just the summary/confidence, not the whole report.
                      const synthesisResult = await executeGeminiJSONCall({
                         model: 'gemini-2.5-pro',
                         contents: WRITER_PROMPT(date, JSON.stringify(approvedAnalyses, null, 2), null),
                         config: { responseMimeType: "application/json", responseSchema: writerSynthesizerSchema }
                      });
                      
-                     // FIX: Assemble the final report in code, not via the LLM.
                      const reportData: CryptoReportData = {
                         ...synthesisResult,
                         sentiment: approvedAnalyses.sentiment,
@@ -600,7 +582,6 @@ export const generateDashboardContent = async (date: string, previousReportSumma
 
                 case 'editing':
                     addLog('Lead Researcher', 'Received feedback from auditor. Revising the final report.');
-                    // FIX: Correctly build the approvedAnalyses object for the editing step.
                     const approvedAnalysesForEdit = processState.specialistTasks
                         .filter(t => t.status === 'approved')
                         .reduce((acc, task) => {
@@ -608,14 +589,12 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                             return acc;
                         }, {} as { [key: string]: any });
                     
-                    // FIX: Call Gemini for just the revised summary/confidence.
                     const revisedSynthesisResult = await executeGeminiJSONCall({
                         model: 'gemini-2.5-pro',
                         contents: WRITER_PROMPT(date, JSON.stringify(approvedAnalysesForEdit, null, 2), processState.verification!.issues),
                         config: { responseMimeType: "application/json", responseSchema: writerSynthesizerSchema }
                     });
                     
-                    // FIX: Assemble the final revised report in code.
                     const revisedReportData: CryptoReportData = {
                         ...revisedSynthesisResult,
                         sentiment: approvedAnalysesForEdit.sentiment,
@@ -646,18 +625,21 @@ export const generateDashboardContent = async (date: string, previousReportSumma
     }
 };
 
-// FIX: Added missing simpleChat function for the Chatbot component.
-// It now supports web search and returns sources.
-export const simpleChat = async (history: Content[], message: string): Promise<{ text: string, sources: Source[] }> => {
-    // FIX: Get a fresh AI client for each call.
+export const simpleChat = async (history: Content[], message: string, context: string | null): Promise<{ text: string, sources: Source[] }> => {
     const ai = getAiClient();
     const contents: Content[] = [...history, { role: 'user', parts: [{ text: message }] }];
+
+    let systemInstruction = "You are a helpful AI assistant.";
+    if (context) {
+        systemInstruction = `You are the AI Companion for the Crypto Insights dashboard. The user is currently viewing a detailed market report. Use the following report data as your primary source to answer the user's questions. If the question cannot be answered from the report, you may use a web search. Your responses should be in well-formatted markdown. Here is the report data: \n\n \`\`\`json\n${context}\n\`\`\``;
+    }
 
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
             contents,
             config: {
+                systemInstruction,
                 tools: [{ googleSearch: {} }],
             }
         });
@@ -676,10 +658,7 @@ export const simpleChat = async (history: Content[], message: string): Promise<{
     }
 };
 
-
-// FIX: Added missing deepAnalysis function for the DeepAnalysis component.
 export const deepAnalysis = async (query: string): Promise<string> => {
-    // FIX: Get a fresh AI client for each call.
     const ai = getAiClient();
     try {
         const response = await ai.models.generateContent({
