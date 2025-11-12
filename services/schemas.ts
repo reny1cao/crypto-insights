@@ -8,20 +8,7 @@ const keyInsightsProperty = {
 
 const detailedReportProperty = {
     type: Type.STRING,
-    description: "A detailed, well-structured report of the analysis in Markdown format. This should be a comprehensive narrative, explaining the findings, their context, and implications. Use headings, lists, and bold text for clarity. CRITICAL: You must cite sources in the text using bracket notation, e.g. [1], [2].",
-};
-
-const sourcesProperty = {
-    type: Type.ARRAY,
-    items: {
-        type: Type.OBJECT,
-        properties: {
-            uri: { type: Type.STRING },
-            title: { type: Type.STRING }
-        },
-        required: ["uri", "title"]
-    },
-    description: "An array of all sources cited in the detailed_report."
+    description: "A detailed, well-structured report of the analysis in Markdown format. This should be a comprehensive narrative, explaining the findings, their context, and implications. Use headings, lists, and bold text for clarity.",
 };
 
 const sentimentSchema = {
@@ -33,9 +20,8 @@ const sentimentSchema = {
         retail_vs_institutional: { type: Type.STRING, description: "Comparison of sentiment and activity between retail and institutional investors." },
         key_insights: keyInsightsProperty,
         detailed_report: detailedReportProperty,
-        sources: sourcesProperty,
     },
-    required: ["overall_sentiment", "fear_greed_index", "social_trends", "retail_vs_institutional", "key_insights", "detailed_report", "sources"]
+    required: ["overall_sentiment", "fear_greed_index", "social_trends", "retail_vs_institutional", "key_insights", "detailed_report"]
 };
 
 const technicalSchema = {
@@ -58,9 +44,8 @@ const technicalSchema = {
         short_term_outlook: { type: Type.STRING, description: "The likely price action in the coming days/week." },
         key_insights: keyInsightsProperty,
         detailed_report: detailedReportProperty,
-        sources: sourcesProperty,
     },
-    required: ["price_trends", "support_resistance", "volume_analysis", "key_levels", "short_term_outlook", "key_insights", "detailed_report", "sources"]
+    required: ["price_trends", "support_resistance", "volume_analysis", "key_levels", "short_term_outlook", "key_insights", "detailed_report"]
 };
 
 const fundamentalSchema = {
@@ -72,9 +57,8 @@ const fundamentalSchema = {
         staking_metrics: { type: Type.STRING, description: "Analysis of staking trends and yields." },
         key_insights: keyInsightsProperty,
         detailed_report: detailedReportProperty,
-        sources: sourcesProperty,
     },
-    required: ["on_chain_metrics", "network_activity", "tvl_trends", "staking_metrics", "key_insights", "detailed_report", "sources"]
+    required: ["on_chain_metrics", "network_activity", "tvl_trends", "staking_metrics", "key_insights", "detailed_report"]
 };
 
 const regulatorySchema = {
@@ -86,9 +70,8 @@ const regulatorySchema = {
         compliance_trends: { type: Type.STRING, description: "Emerging trends in crypto compliance and enforcement." },
         key_insights: keyInsightsProperty,
         detailed_report: detailedReportProperty,
-        sources: sourcesProperty,
     },
-    required: ["recent_regulations", "institutional_activity", "etf_flows", "compliance_trends", "key_insights", "detailed_report", "sources"]
+    required: ["recent_regulations", "institutional_activity", "etf_flows", "compliance_trends", "key_insights", "detailed_report"]
 };
 
 const innovationSchema = {
@@ -100,9 +83,8 @@ const innovationSchema = {
         innovation_highlights: { type: Type.STRING, description: "Summary of key technological breakthroughs or new concepts." },
         key_insights: keyInsightsProperty,
         detailed_report: detailedReportProperty,
-        sources: sourcesProperty,
     },
-    required: ["defi_trends", "layer2_adoption", "emerging_protocols", "innovation_highlights", "key_insights", "detailed_report", "sources"]
+    required: ["defi_trends", "layer2_adoption", "emerging_protocols", "innovation_highlights", "key_insights", "detailed_report"]
 };
 
 const riskSchema = {
@@ -115,9 +97,8 @@ const riskSchema = {
         red_flags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific warnings or concerning signs." },
         key_insights: keyInsightsProperty,
         detailed_report: detailedReportProperty,
-        sources: sourcesProperty,
     },
-    required: ["market_risks", "technical_risks", "regulatory_risks", "liquidity_concerns", "red_flags", "key_insights", "detailed_report", "sources"]
+    required: ["market_risks", "technical_risks", "regulatory_risks", "liquidity_concerns", "red_flags", "key_insights", "detailed_report"]
 };
 
 const opportunitySchema = {
@@ -129,9 +110,8 @@ const opportunitySchema = {
         timing_considerations: { type: Type.STRING, description: "Analysis of the best time to act on these opportunities." },
         key_insights: keyInsightsProperty,
         detailed_report: detailedReportProperty,
-        sources: sourcesProperty,
     },
-    required: ["top_opportunities", "risk_reward_assessment", "portfolio_recommendations", "timing_considerations", "key_insights", "detailed_report", "sources"]
+    required: ["top_opportunities", "risk_reward_assessment", "portfolio_recommendations", "timing_considerations", "key_insights", "detailed_report"]
 };
 
 export const specialistSchemas: Record<string, any> = {

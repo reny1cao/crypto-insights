@@ -11,7 +11,6 @@ export interface MarketSentimentAnalysis {
   retail_vs_institutional: string;
   key_insights: string[];
   detailed_report: string;
-  sources: Source[];
 }
 
 export interface TechnicalAnalysis {
@@ -22,7 +21,6 @@ export interface TechnicalAnalysis {
   short_term_outlook: string;
   key_insights: string[];
   detailed_report: string;
-  sources: Source[];
 }
 
 export interface FundamentalAnalysis {
@@ -32,7 +30,6 @@ export interface FundamentalAnalysis {
   staking_metrics: string;
   key_insights: string[];
   detailed_report: string;
-  sources: Source[];
 }
 
 export interface RegulatoryAnalysis {
@@ -42,7 +39,6 @@ export interface RegulatoryAnalysis {
   compliance_trends: string;
   key_insights: string[];
   detailed_report: string;
-  sources: Source[];
 }
 
 export interface InnovationAnalysis {
@@ -52,7 +48,6 @@ export interface InnovationAnalysis {
   innovation_highlights: string;
   key_insights: string[];
   detailed_report: string;
-  sources: Source[];
 }
 
 export interface RiskAnalysis {
@@ -63,7 +58,6 @@ export interface RiskAnalysis {
   red_flags: string[];
   key_insights: string[];
   detailed_report: string;
-  sources: Source[];
 }
 
 export interface InvestmentOpportunities {
@@ -73,7 +67,6 @@ export interface InvestmentOpportunities {
   timing_considerations: string;
   key_insights: string[];
   detailed_report: string;
-  sources: Source[];
 }
 
 export interface VerificationResult {
@@ -94,6 +87,7 @@ export interface CryptoReportData {
   risks: RiskAnalysis;
   opportunities: InvestmentOpportunities;
   confidence_level: 'high' | 'medium' | 'low';
+  sources: Source[];
 }
 
 // --- Multi-agent workflow types ---

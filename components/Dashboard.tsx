@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AgentProcessState, CryptoReportData, Source } from '../types';
+import { AgentProcessState, CryptoReportData } from '../types';
 import { generateDashboardContent } from '../services/geminiService';
 import { Chatbot } from './Chatbot';
 import { ResearchTeamUI } from './ResearchTeamUI';
@@ -7,30 +7,18 @@ import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { ExclamationCircleIcon } from './icons/ExclamationCircleIcon';
 
 // --- Specialist Icons ---
-const SentimentIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5-2 4-2 4 2 4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>);
-const TechnicalIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"></path><path d="m19 9-5 5-4-4-3 3"></path></svg>);
-const FundamentalIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20V16"></path></svg>);
-const RegulatoryIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 13.5 10 18l-3-3-3 3h16v-3l-3-3-3.5 3.5Z"></path><path d="m2 14 3-3 3 3 5-5 3 3 4-4"></path></svg>);
-const InnovationIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.09 16.05a1 1 0 0 1-1.42 1.42l-1.4-1.4a1 1 0 0 1 0-1.42l5.68-5.68a1 1 0 0 1 1.42 0l1.4 1.4a1 1 0 0 1 0 1.42Z"></path><path d="m6 6 7.5 7.5"></path></svg>);
-const RiskIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>);
-const OpportunityIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>);
+const SentimentIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path><path d="M8 14h8"></path><path d="M15 9.5c0 .8-.7 1.5-1.5 1.5S12 10.3 12 9.5s.7-1.5 1.5-1.5S15 8.7 15 9.5z"></path><path d="M9 9.5c0 .8-.7 1.5-1.5 1.5S6 10.3 6 9.5s.7-1.5 1.5-1.5S9 8.7 9 9.5z"></path></svg>);
+const TechnicalIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="20" x2="8" y2="14"></line><line x1="12" y1="20" x2="12" y2="10"></line><line x1="16" y1="20" x2="16" y2="4"></line></svg>);
+const FundamentalIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>);
+const RegulatoryIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>);
+const InnovationIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v4" /><path d="M3 5h4" /><path d="M19 17v4" /><path d="M17 19h4" /><path d="M3 17l6-6" /><path d="M15 3l6 6" /><path d="M21 15l-6-6" /></svg>);
+const RiskIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>);
+const OpportunityIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41L13.7 2.71a2.41 2.41 0 0 0-3.41 0z" /><line x1="2.7" y1="10.3" x2="21.3" y2="10.3" /><line x1="12" y1="2.7" x2="12" y2="21.3" /></svg>);
 
-const MarkdownRenderer: React.FC<{ content: string; sources?: Source[] }> = ({ content, sources }) => {
+const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
   if (!content) return null;
 
-  const renderWithCitations = (line: string) => {
-    if (!sources || sources.length === 0) return line;
-    
-    return line.replace(/\[(\d+)\]/g, (match, numberStr) => {
-        const number = parseInt(numberStr, 10);
-        const source = sources[number - 1];
-        if (source) {
-            return `<sup class="font-bold"><a href="${source.uri}" target="_blank" rel="noopener noreferrer" title="${source.title}" class="text-gold-500 hover:text-gold-400 no-underline">[${number}]</a></sup>`;
-        }
-        return match;
-    });
-  };
-
+  // A more robust markdown renderer to handle inline styles and lists correctly.
   const elements: React.ReactElement[] = [];
   const lines = content.split('\n');
   let listItems: string[] = [];
@@ -40,7 +28,7 @@ const MarkdownRenderer: React.FC<{ content: string; sources?: Source[] }> = ({ c
       elements.push(
         <ul key={`ul-${elements.length}`} className="list-disc list-inside space-y-2 my-4 pl-4">
           {listItems.map((item, i) => (
-            <li key={i} dangerouslySetInnerHTML={{ __html: renderWithCitations(item) }} />
+            <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
           ))}
         </ul>
       );
@@ -49,25 +37,26 @@ const MarkdownRenderer: React.FC<{ content: string; sources?: Source[] }> = ({ c
   };
 
   lines.forEach((line, index) => {
+    // Process inline bold first
     let processedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
     if (processedLine.startsWith('## ')) {
       flushList();
-      elements.push(<h2 key={index} className="font-serif text-xl text-gold-400 mt-6 mb-3 border-b border-gold-400/20 pb-1" dangerouslySetInnerHTML={{ __html: renderWithCitations(processedLine.substring(3)) }} />);
+      elements.push(<h2 key={index} className="font-serif text-xl text-gold-400 mt-6 mb-3 border-b border-gold-400/20 pb-1" dangerouslySetInnerHTML={{ __html: processedLine.substring(3) }} />);
     } else if (processedLine.startsWith('### ')) {
       flushList();
-      elements.push(<h3 key={index} className="text-lg font-semibold text-white mt-4 mb-2" dangerouslySetInnerHTML={{ __html: renderWithCitations(processedLine.substring(4)) }} />);
+      elements.push(<h3 key={index} className="text-lg font-semibold text-white mt-4 mb-2" dangerouslySetInnerHTML={{ __html: processedLine.substring(4) }} />);
     } else if (processedLine.match(/^(\*|\s{2,}\*|\d+\.) /)) {
       listItems.push(processedLine.replace(/^(\s*)(\*|\d+\.) /, ''));
     } else {
       flushList();
       if (processedLine.trim() !== '') {
-        elements.push(<p key={index} className="mb-4" dangerouslySetInnerHTML={{ __html: renderWithCitations(processedLine) }} />);
+        elements.push(<p key={index} className="mb-4" dangerouslySetInnerHTML={{ __html: processedLine }} />);
       }
     }
   });
 
-  flushList();
+  flushList(); // Ensure any trailing list is rendered
 
   return <div className="prose prose-invert prose-sm max-w-none text-gray-300">{elements}</div>;
 };
@@ -98,7 +87,7 @@ const SpecialistReportCard: React.FC<{ title: string; icon: React.ReactNode; ana
                         View Full Analysis
                     </summary>
                     <div className="mt-4">
-                        <MarkdownRenderer content={analysis.detailed_report} sources={analysis.sources} />
+                        <MarkdownRenderer content={analysis.detailed_report} />
                     </div>
                 </details>
             </div>
@@ -286,6 +275,22 @@ export const Dashboard: React.FC = () => {
                         />
                     ))}
                 </div>
+
+                {report.sources.length > 0 && (
+                    <div className="bg-shark p-6 rounded-xl border border-white/5">
+                        <h2 className="font-serif text-2xl text-gold-400 mb-4">Sources</h2>
+                        <ul className="space-y-2 text-sm grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+                            {report.sources.map((source, index) => (
+                                <li key={index} className="truncate">
+                                    <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gold-500 transition-colors flex items-center gap-2">
+                                        <span className="flex-shrink-0">[{index + 1}]</span>
+                                        <span className="truncate">{source.title}</span>
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
         );
     }

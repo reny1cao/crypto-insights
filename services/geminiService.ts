@@ -1,4 +1,4 @@
-// FIX: Added 'Chat' to the import for the new simpleChat function.
+// FIX: Added 'Chat' and 'GroundingChunk' to the import for the new simpleChat function.
 import { GoogleGenAI, GenerateContentResponse, Type, Content, GroundingChunk, Chat } from "@google/genai";
 import { AgentProcessState, CryptoReportData, Source, SpecialistTask, SpecialistType, VerificationResult, AgentLogEntry, ReviewDecision } from '../types';
 // FIX: Imported the new writerSynthesizerSchema
@@ -93,7 +93,7 @@ Synthesize your new findings into a concise text summary. This summary will be u
 If no new information is needed, state that the feedback can be addressed with the existing data and context.
 Do NOT output JSON. Output only the text summary of your new findings.`;
 
-const SPECIALIST_REVISION_ANALYSIS_PROMPT = (specialistName: string, previousAnalysis: string, feedback: string, newResearchSummary: string, otherAnalyses: string, sources: Source[]) => `You are the analysis module for a ${specialistName}. You are revising a previous analysis.
+const SPECIALIST_REVISION_ANALYSIS_PROMPT = (specialistName: string, previousAnalysis: string, feedback: string, newResearchSummary: string, otherAnalyses: string) => `You are the analysis module for a ${specialistName}. You are revising a previous analysis.
 
 Here is your original analysis draft:
 --- DRAFT ANALYSIS (JSON) ---
@@ -105,7 +105,7 @@ Here is the feedback from the Lead Researcher:
 ${feedback}
 ---
 
-Here is a summary of new information you gathered to address the feedback:
+And here is a summary of new information you gathered to address the feedback:
 --- NEW RESEARCH SUMMARY ---
 ${newResearchSummary}
 ---
@@ -115,34 +115,20 @@ For additional context, here are the analyses submitted by your colleagues:
 ${otherAnalyses.length > 0 ? otherAnalyses : 'No other colleague analyses were available for this review cycle.'}
 ---
 
-Here are the available sources for citation. The list includes sources from your original research and any new ones you just found:
---- AVAILABLE SOURCES ---
-${sources.map((s, i) => `[${i + 1}] ${s.title}: ${s.uri}`).join('\n')}
----
-
-Your task is to produce a new, revised JSON object that incorporates the feedback, using the new information and colleagues' analyses.
-**CRITICAL:** In the 'detailed_report' markdown, you MUST cite your sources by adding the corresponding number in brackets, e.g., [1], [2], wherever you use information from that source. The JSON object must also include the 'sources' array listing all sources you used.
+Your task is to produce a new, revised JSON object that incorporates the feedback, using the new information and your colleagues' analyses as necessary. Pay close attention to revising the 'detailed_report' field to reflect the changes. The revised output must strictly adhere to the required schema.
 
 Your final output MUST be only the revised JSON object. Do not include any other text, greetings, or explanations.`;
 
-const SPECIALIST_ANALYSIS_PROMPT = (specialistName: string, researchSummary: string, sources: Source[]) => `You are the analysis module for a ${specialistName}.
-Based *only* on the following research summary and the provided sources, produce a structured analysis.
+const SPECIALIST_ANALYSIS_PROMPT = (specialistName: string, researchSummary: string) => `You are the analysis module for a ${specialistName}.
+Based *only* on the following research summary, produce a structured analysis.
 
 Research Summary:
 ---
 ${researchSummary}
 ---
 
-Here are the web sources you found, which you must use for citations:
---- SOURCES ---
-${sources.map((s, i) => `[${i + 1}] ${s.title}: ${s.uri}`).join('\n')}
----
-
 Your response MUST be a JSON object that strictly adheres to the provided schema.
-**CRITICAL INSTRUCTIONS:**
-1.  Write a comprehensive, well-structured 'detailed_report' in Markdown format. This report should be a narrative that explains your findings, their context, and their potential implications.
-2.  In your 'detailed_report', wherever you present information that comes from a specific source, you MUST cite it using the corresponding number in brackets, for example: "The market saw a significant downturn [1]."
-3.  The final JSON object must include the 'sources' array, containing the list of all sources you cited.`;
+Crucially, you must write a comprehensive, well-structured 'detailed_report' in Markdown format. This report should be a narrative that explains your findings, their context, and their potential implications for investors. Use headings, lists, and bold text to make it clear and readable. This is separate from the concise 'key_insights'.`;
 
 const REVIEWER_PROMPT = (date: string, analysesToReview: string, approvedAnalyses: string) => `You are the Lead Researcher reviewing your team's work for the ${date} market report. Your goal is to ensure all specialist reports are accurate, high-quality, and consistent with each other before synthesizing the final report.
 
@@ -390,10 +376,6 @@ export const generateDashboardContent = async (date: string, previousReportSumma
 
                                 currentIter.searchSummary = `Revision research summary:\n${revisionResearchResult.text}`;
                                 addLog(task.name, 'Incorporating feedback, new research, and colleague insights into a revised analysis...');
-                                
-                                const combinedSources = [...(previousIter.sources || []), ...revisionResearchResult.sources];
-                                currentIter.sources = Array.from(new Map(combinedSources.map(s => [s.uri, s])).values());
-
 
                                 const revisedJson = await executeGeminiJSONCall({
                                     model: 'gemini-2.5-flash',
@@ -402,8 +384,7 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                                         previousAnalysis,
                                         currentIter.feedback!,
                                         revisionResearchResult.text,
-                                        otherSpecialistsAnalyses,
-                                        currentIter.sources
+                                        otherSpecialistsAnalyses
                                     ),
                                     config: {
                                         responseMimeType: "application/json", 
@@ -412,7 +393,9 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                                 });
 
                                 currentIter.analysis = revisedJson;
-                                
+                                const combinedSources = [...(previousIter.sources || []), ...revisionResearchResult.sources];
+                                currentIter.sources = Array.from(new Map(combinedSources.map(s => [s.uri, s])).values());
+
                                 addLog(task.name, 'Revision complete. Submitting to Lead for review.');
 
                             } else {
@@ -433,7 +416,7 @@ export const generateDashboardContent = async (date: string, previousReportSumma
 
                                 currentIter.analysis = await executeGeminiJSONCall({
                                     model: 'gemini-2.5-flash',
-                                    contents: SPECIALIST_ANALYSIS_PROMPT(task.name, researchResult.text, researchResult.sources),
+                                    contents: SPECIALIST_ANALYSIS_PROMPT(task.name, researchResult.text),
                                     config: {
                                         responseMimeType: "application/json", 
                                         responseSchema: specialistSchemas[task.id],
@@ -581,7 +564,11 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                         innovation: approvedAnalyses.innovation,
                         risks: approvedAnalyses.risk,
                         opportunities: approvedAnalyses.opportunity,
+                        sources: []
                      };
+                     
+                     const allSources = processState.specialistTasks.flatMap(t => t.iterations.flatMap(i => i.sources || []));
+                     reportData.sources = Array.from(new Map(allSources.map(s => [s.uri, s])).values());
                      
                      update({ finalReport: reportData, stage: 'verifying' });
                      addLog('Lead Researcher', 'Draft report composed. Sending to auditor for verification.');
@@ -631,7 +618,11 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                         innovation: approvedAnalysesForEdit.innovation,
                         risks: approvedAnalysesForEdit.risk,
                         opportunities: approvedAnalysesForEdit.opportunity,
+                        sources: []
                     };
+                    
+                    const editSources = processState.specialistTasks.flatMap(t => t.iterations.flatMap(i => i.sources || []));
+                    revisedReportData.sources = Array.from(new Map(editSources.map(s => [s.uri, s])).values());
                     
                     update({ finalReport: revisedReportData, stage: 'verifying' });
                     addLog('Lead Researcher', 'Revised report composed. Resubmitting to auditor for verification.');
@@ -649,22 +640,35 @@ export const generateDashboardContent = async (date: string, previousReportSumma
 };
 
 // FIX: Added missing simpleChat function for the Chatbot component.
-export const simpleChat = async (history: Content[], message: string): Promise<string> => {
+// It now supports web search and returns sources.
+export const simpleChat = async (history: Content[], message: string): Promise<{ text: string, sources: Source[] }> => {
     // FIX: Get a fresh AI client for each call.
     const ai = getAiClient();
+    const contents: Content[] = [...history, { role: 'user', parts: [{ text: message }] }];
+
     try {
-        const chat = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            history: history,
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-pro',
+            contents,
+            config: {
+                tools: [{ googleSearch: {} }],
+            }
         });
-        const response = await chat.sendMessage({ message });
-        return response.text;
+
+        const sources = (response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [])
+            .map((chunk: GroundingChunk): Source => ({
+                uri: chunk.web?.uri ?? '', title: chunk.web?.title ?? 'Untitled Source',
+            })).filter(source => source.uri);
+
+        return { text: response.text, sources };
+
     } catch (e) {
-        console.error("Simple chat failed:", e);
+        console.error("Simple chat with search failed:", e);
         const errorText = e instanceof Error ? e.message : "Unknown error";
         throw new Error(`Chat failed. Details: ${errorText}`);
     }
 };
+
 
 // FIX: Added missing deepAnalysis function for the DeepAnalysis component.
 export const deepAnalysis = async (query: string): Promise<string> => {

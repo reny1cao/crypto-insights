@@ -1,19 +1,15 @@
 import React from 'react';
 
 export const BotIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg
+  <svg 
+    {...props} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="1.5" 
     xmlns="http://www.w3.org/2000/svg"
-    className="h-6 w-6"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-    {...props}
   >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M12 6V5M9 5a2 2 0 00-2 2v3a2 2 0 11-4 0v-3a2 2 0 00-2-2h-1M15 5a2 2 0 012 2v3a2 2 0 104 0v-3a2 2 0 012-2h1M9 15v-3a2 2 0 114 0v3m-4 0a2 2 0 00-2 2h10a2 2 0 00-2-2M9 15a2 2 0 012-2h2a2 2 0 012 2"
-    />
+    <path d="M17.5 9.62V12c0 3.31-2.69 6-6 6h-1c-3.31 0-6-2.69-6-6V9.62" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M20.91 7.42c.5 1.59-.28 3.38-1.87 3.88l-1.46.46c-.47.15-.96.15-1.43 0l-1.46-.46c-1.59-.5-2.37-2.29-1.87-3.88l.46-1.46c.15-.47.44-.89.83-1.18l1.04-.78c1.59-.5 3.38.28 3.88 1.87l.46 1.45Z" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
