@@ -28,7 +28,7 @@ Synthesize your findings into a comprehensive text summary. This summary will se
 Do NOT output JSON. Output only the text summary of your findings.`;
 
 const MEETING_DISCUSSION_TURN_PROMPT = (specialistName: string, specialistDescription: string, meetingAgenda: string, discussionHistory: string) => `You are the ${specialistName}, an expert AI specializing in crypto analysis. ${specialistDescription}.
-You are participating in a planning meeting with your AI specialist colleagues. The Lead Researcher has provided the following market summary as a meeting agenda:
+You are participating in Round 1 of a planning meeting with your AI specialist colleagues. The Lead Researcher has provided the following market summary as a meeting agenda:
 
 --- MEETING AGENDA ---
 ${meetingAgenda}
@@ -39,32 +39,65 @@ The team discussion so far:
 ${discussionHistory.length > 0 ? discussionHistory : "You are the first to speak."}
 ---
 
-Based on the agenda AND the points made by your colleagues, what is your contribution to the discussion? 
-You can agree with a point and expand on it, respectfully disagree and offer an alternative, or introduce a new point relevant to your expertise. Your goal is to collaboratively refine the team's focus for today's report. 
+Based on the agenda AND the points made by your colleagues, what is your initial contribution to the discussion? 
+Your goal is to state your primary perspective and identify the most critical area of focus from your domain of expertise.
 Keep your response concise and direct, as if you were speaking in a meeting. Do not greet anyone or use unnecessary pleasantries.
 Output a simple text response. Do NOT output JSON.`;
 
+const MEETING_REBUTTAL_TURN_PROMPT = (specialistName: string, specialistDescription: string, meetingAgenda: string, roundOneTranscript: string, discussionHistory: string) => `You are the ${specialistName}, an expert AI specializing in crypto analysis. ${specialistDescription}.
+You are in Round 2 of a planning meeting. The goal of this round is to refine, challenge, and synthesize the ideas from Round 1 into a more cohesive strategy.
+
+--- ORIGINAL MEETING AGENDA ---
+${meetingAgenda}
+---
+
+Here is the complete transcript of everyone's opening statements from Round 1:
+--- ROUND 1 TRANSCRIPT ---
+${roundOneTranscript}
+---
+
+The Round 2 discussion so far:
+--- CURRENT ROUND 2 DISCUSSION ---
+${discussionHistory.length > 0 ? discussionHistory : "You are the first to speak in this round."}
+---
+
+Now, based on the *entirety* of the Round 1 discussion, provide your final thoughts.
+- Do you want to revise your initial statement?
+- Do you see a new connection between your analysis and another specialist's point?
+- Do you disagree with a colleague's assessment?
+Your goal is to help the Lead Researcher synthesize these diverse viewpoints into a concrete plan. Be concise and impactful.
+Output a simple text response. Do NOT output JSON.`;
+
 const PLAN_FINALIZATION_PROMPT = (date: string, researchSummary: string, discussionTranscript: string) => `You are an expert Lead Researcher for a crypto analysis firm. It is ${date}.
-You have just concluded a planning meeting with your team of AI specialists where you all discussed the initial market summary you provided.
+You have just concluded a multi-round planning meeting with your team of AI specialists.
 
 Initial Market Summary (Meeting Agenda):
 ---
 ${researchSummary}
 ---
 
-Here is the full transcript of the team's discussion:
---- DISCUSSION TRANSCRIPT ---
+Here is the full transcript of the team's multi-round discussion:
+--- FULL DISCUSSION TRANSCRIPT ---
 ${discussionTranscript}
 ---
 
-Your task is to synthesize the key takeaways from this collaborative discussion into a final, actionable, and strategic research plan. Formulate a specific and high-level research objective for each specialist that reflects the collective intelligence and refined focus achieved during the meeting.
+Your task is to synthesize the key takeaways from this collaborative discussion into a final, actionable, and strategic research plan. The plan should reflect the refined focus and deeper insights achieved during the debate. Formulate a specific and high-level research objective for each specialist.
 
 Your final output MUST be a single JSON object that strictly adheres to the provided schema. Do not include any other text, greetings, or explanations outside of the JSON object itself. The JSON should contain a single key "objectives", which is an array of objects, each with a "specialist" name and their "objective".
 `;
 
 const SPECIALIST_RESEARCH_PROMPT = (specialistName: string, specialistDescription: string, objective: string) => `You are a ${specialistName}, an expert AI specializing in crypto analysis. ${specialistDescription}.
 Your current objective is: "${objective}".
-Your task is to use the web search tool to find relevant, up-to-date information to satisfy this objective.
+
+**Critical Research Guidelines:**
+- **Time Sensitivity:** Your research is for today's market report. Prioritize information published within the last 24-48 hours. Older data should only be used for historical context and must be clearly identified as such.
+- **Source Quality:** You MUST prioritize high-quality, reputable sources.
+  - **Excellent:** Official project documentation, direct statements from regulatory bodies, major financial news outlets (Bloomberg, Reuters), and top-tier crypto publications (e.g., CoinDesk, The Block, Decrypt).
+  - **Use with Caution:** Well-known crypto news aggregators. Verify their claims against primary sources if possible.
+  - **Avoid:** Anonymous blogs, forum posts (e.g., Reddit), unverified social media accounts, and press releases with a clear promotional bias.
+- **Fact-Checking:** If you find conflicting information, note the discrepancy and attempt to verify the correct information from a more authoritative source.
+
+Your task is to use the web search tool to find relevant, up-to-date information to satisfy this objective, strictly following the guidelines above.
 Based *only* on your findings, synthesize a comprehensive text summary. This summary will be used by another part of your system to generate a structured JSON analysis, so it must be detailed and contain all necessary information.
 Do NOT output JSON. Output only the text summary of your findings.`;
 
@@ -86,7 +119,14 @@ For additional context, here are the analyses submitted by your colleagues durin
 ${otherAnalyses.length > 0 ? otherAnalyses : 'No other colleague analyses were available for this review cycle.'}
 ---
 
-Your task is to use the web search tool to find new or updated information *specifically to address the feedback*. You may also use your colleagues' work to inform your revision.
+**Critical Research Guidelines for Revision:**
+When addressing feedback, it is crucial to use the highest quality information.
+- **Time Sensitivity:** Prioritize information published *since your last draft*. Check for updates within the last 24 hours that might change your analysis.
+- **Source Quality:** Adhere strictly to high-quality sources. Avoid using low-quality or outdated sources to defend your previous analysis. If the feedback points out a flaw, seek out the most credible and recent data available.
+  - **Excellent:** Primary sources, major financial news, top-tier crypto publications.
+  - **Avoid:** Anonymous blogs, forums, outdated articles.
+
+Your task is to use the web search tool to find new or updated information *specifically to address the feedback*, following the guidelines above. You may also use your colleagues' work to inform your revision.
 Synthesize your new findings into a concise text summary. This summary will be used to update your original analysis.
 If no new information is needed, state that the feedback can be addressed with the existing data and context.
 Do NOT output JSON. Output only the text summary of your new findings.`;
@@ -265,29 +305,49 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                     break;
                 
                 case 'meeting':
-                    addLog('Lead Researcher', "Alright team, let's discuss today's agenda. I'll be synthesizing our conversation into a final plan.");
+                    addLog('Lead Researcher', "Round 1: Gathering initial statements from all specialists.");
                     
-                    let discussionTranscript = "";
+                    let roundOneTranscript = "";
                     for (const task of processState.specialistTasks) {
                         const spec = SPECIALISTS.find(s => s.id === task.id)!;
                         
-                        addLog(task.name, "is formulating their contribution to the discussion...");
+                        addLog(task.name, "is formulating their initial analysis...");
 
                         const turn = await executeGeminiTextCall({
                             model: 'gemini-2.5-flash',
-                            contents: MEETING_DISCUSSION_TURN_PROMPT(task.name, spec.description, processStore.agenda, discussionTranscript),
+                            contents: MEETING_DISCUSSION_TURN_PROMPT(task.name, spec.description, processStore.agenda, roundOneTranscript),
                         });
                         
-                        addLog(task.name, turn.text);
-
-                        discussionTranscript += `\n\n--- Contribution from ${task.name} ---\n${turn.text}`;
+                        addLog(task.name, `Initial thought: "${turn.text}"`);
+                        roundOneTranscript += `\n\n--- Contribution from ${task.name} ---\n${turn.text}`;
                     }
 
-                    addLog('Lead Researcher', 'Excellent discussion. I will now synthesize this into our final research plan.');
+                    addLog('Lead Researcher', 'Round 2: All specialists will now review the initial discussion and provide final, synthesized thoughts for refinement and rebuttal.');
+
+                    let roundTwoHistory = "";
+                    let fullDiscussionTranscript = `--- ROUND 1: OPENING STATEMENTS --- ${roundOneTranscript}\n\n--- ROUND 2: REFINEMENT & REBUTTAL ---`;
+
+                    for (const task of processState.specialistTasks) {
+                        const spec = SPECIALISTS.find(s => s.id === task.id)!;
+
+                        addLog(task.name, "is formulating their rebuttal and final thoughts...");
+
+                        const rebuttalTurn = await executeGeminiTextCall({
+                            model: 'gemini-2.5-flash',
+                            contents: MEETING_REBUTTAL_TURN_PROMPT(task.name, spec.description, processStore.agenda, roundOneTranscript, roundTwoHistory),
+                        });
+
+                        addLog(task.name, `Final thought: "${rebuttalTurn.text}"`);
+                        const rebuttalText = `\n\n--- Final thought from ${task.name} ---\n${rebuttalTurn.text}`;
+                        roundTwoHistory += rebuttalText;
+                        fullDiscussionTranscript += rebuttalText;
+                    }
+
+                    addLog('Lead Researcher', 'Excellent debate. I will now synthesize this multi-round discussion into our final research plan.');
                     
                     const planResult = await executeGeminiJSONCall({
                         model: 'gemini-2.5-pro',
-                        contents: PLAN_FINALIZATION_PROMPT(date, processStore.agenda, discussionTranscript),
+                        contents: PLAN_FINALIZATION_PROMPT(date, processStore.agenda, fullDiscussionTranscript),
                         config: {
                             responseMimeType: "application/json",
                             responseSchema: plannerSchema
@@ -386,7 +446,15 @@ export const generateDashboardContent = async (date: string, previousReportSumma
 
                                 currentIter.analysis = revisedJson;
                                 const combinedSources = [...(previousIter.sources || []), ...revisionResearchResult.sources];
-                                currentIter.sources = Array.from(new Map(combinedSources.map(s => [s.uri, s])).values());
+                                
+                                const uniqueRevisionSourcesMap = new Map<string, Source>();
+                                combinedSources.forEach(source => {
+                                    if (source && source.uri) {
+                                        const normalizedUri = source.uri.endsWith('/') ? source.uri.slice(0, -1) : source.uri;
+                                        uniqueRevisionSourcesMap.set(normalizedUri, source);
+                                    }
+                                });
+                                currentIter.sources = Array.from(uniqueRevisionSourcesMap.values());
 
                                 addLog(task.name, 'Revision complete. Submitting to Lead for review.');
 
@@ -557,7 +625,14 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                      };
                      
                      const allSources = processState.specialistTasks.flatMap(t => t.iterations.flatMap(i => i.sources || []));
-                     reportData.sources = Array.from(new Map(allSources.map(s => [s.uri, s])).values());
+                     const uniqueSourcesMap = new Map<string, Source>();
+                     allSources.forEach(source => {
+                         if (source && source.uri) {
+                             const normalizedUri = source.uri.endsWith('/') ? source.uri.slice(0, -1) : source.uri;
+                             uniqueSourcesMap.set(normalizedUri, source);
+                         }
+                     });
+                     reportData.sources = Array.from(uniqueSourcesMap.values());
                      
                      update({ finalReport: reportData, stage: 'verifying' });
                      addLog('Lead Researcher', 'Draft report composed. Sending to auditor for verification.');
@@ -608,7 +683,14 @@ export const generateDashboardContent = async (date: string, previousReportSumma
                     };
                     
                     const editSources = processState.specialistTasks.flatMap(t => t.iterations.flatMap(i => i.sources || []));
-                    revisedReportData.sources = Array.from(new Map(editSources.map(s => [s.uri, s])).values());
+                    const uniqueEditSourcesMap = new Map<string, Source>();
+                    editSources.forEach(source => {
+                        if (source && source.uri) {
+                            const normalizedUri = source.uri.endsWith('/') ? source.uri.slice(0, -1) : source.uri;
+                            uniqueEditSourcesMap.set(normalizedUri, source);
+                        }
+                    });
+                    revisedReportData.sources = Array.from(uniqueEditSourcesMap.values());
                     
                     update({ finalReport: revisedReportData, stage: 'verifying' });
                     addLog('Lead Researcher', 'Revised report composed. Resubmitting to auditor for verification.');
